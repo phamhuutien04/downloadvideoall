@@ -15,6 +15,7 @@ contextBridge.exposeInMainWorld('clipVault', {
   ffmpegStatus: () => ipcRenderer.invoke('ffmpeg:status'),
   installFfmpeg: () => ipcRenderer.invoke('ffmpeg:install'),
   loadPreview: (request) => ipcRenderer.invoke('preview:load', request),
+  openYoutubePreview: (url) => ipcRenderer.invoke('preview:open-youtube', url),
   startDownload: (request) => ipcRenderer.invoke('downloads:start', request),
   cancelDownload: () => ipcRenderer.invoke('downloads:cancel'),
   onProgress: (callback) => subscribe('downloads:progress', callback),

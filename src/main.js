@@ -1,12 +1,13 @@
 const fs = require('node:fs')
 const path = require('node:path')
 const crypto = require('node:crypto')
+const { pathToFileURL } = require('node:url')
 const { execFile } = require('node:child_process')
 const { Readable, Transform } = require('node:stream')
 const { pipeline } = require('node:stream/promises')
 const { promisify } = require('node:util')
 const yauzl = require('yauzl')
-const { app, BrowserWindow, dialog, ipcMain, Menu, shell } = require('electron')
+const { app, BrowserWindow, dialog, ipcMain, Menu, shell, session } = require('electron')
 
 // ClipVault only accepts URLs, so Chromium's spelling service is unnecessary.
 // Disabling it also prevents malformed Windows language identifiers from
@@ -21,8 +22,7 @@ if (process.platform === 'win32' && process.env.LOCALAPPDATA) {
   if (!app.commandLine.hasSwitch('user-data-dir')) {
     app.setPath('userData', path.join(process.env.LOCALAPPDATA, 'ClipVault'))
   }
-  app.disableHardwareAcceleration()
-  app.commandLine.appendSwitch('disable-gpu-sandbox')
+  // YouTube's embedded player requires the normal GPU/WebGL path.
 }
 
 const youtubedl = require('youtube-dl-exec')
@@ -234,8 +234,30 @@ async function previewInfo(platform, sourceUrl) {
   const { stdout } = await execFileAsync(downloader.path, ['--dump-single-json', '--no-playlist', '--no-warnings', '--', url], { windowsHide: true, timeout: 60000, maxBuffer: 10 * 1024 * 1024 })
   const info = parseYtDlpInfo(stdout)
   const formats = Array.isArray(info.formats) ? info.formats : []
-  const playable = formats.filter((item) => item?.url && item.vcodec !== 'none' && item.acodec !== 'none').sort((a, b) => (b.height || 0) - (a.height || 0))[0]
-  return { title: String(info.title || 'Video xem trước'), thumbnail: info.thumbnail || null, url: playable?.url || info.url || null, duration: Number(info.duration || 0) }
+  // TikTok often exposes preview video and audio as separate streams. A video
+  // stream is still useful for in-app preview; the actual download keeps the
+  // higher-quality FFmpeg merge path.
+  const playable = formats.filter((item) => item?.url && item.vcodec && item.vcodec !== 'none' && item.ext === 'mp4')
+    .sort((a, b) => ((b.acodec !== 'none') - (a.acodec !== 'none')) || ((b.height || 0) - (a.height || 0)))[0]
+  let previewUrl = playable?.url || info.url || null
+  if (platform !== 'rednote') {
+    const previewDirectory = path.join(app.getPath('userData'), 'preview')
+    fs.rmSync(previewDirectory, { recursive: true, force: true })
+    fs.mkdirSync(previewDirectory, { recursive: true })
+    const output = path.join(previewDirectory, 'preview-%(id)s.%(ext)s')
+    try {
+      const previewFormat = platform === 'youtube' ? '18/best[height<=360][acodec!=none][vcodec!=none]' : 'b'
+      await youtubedl.create(downloader.path).exec(url, { output, noPlaylist: true, format: previewFormat, maxFilesize: '100M', windowsFilenames: true }, { windowsHide: true })
+      const file = fs.readdirSync(previewDirectory).map((name) => path.join(previewDirectory, name)).find((entry) => fs.statSync(entry).isFile())
+      if (!file) throw new Error('Không tạo được tệp xem trước.')
+      previewUrl = pathToFileURL(file).href
+    } catch (error) {
+      // YouTube Shorts often has no pre-muxed `best` stream. Its compatible
+      // MP4 video stream still allows a visual preview without blocking users.
+      if (platform !== 'youtube' || !previewUrl) throw error
+    }
+  }
+  return { title: String(info.title || 'Video xem trước'), thumbnail: info.thumbnail || null, url: previewUrl, duration: Number(info.duration || 0) }
 }
 
 function accessRequirementMessage(platform, value) {
@@ -979,6 +1001,11 @@ function createWindow() {
 async function initializeApp() {
   // ClipVault uses its own controls and does not need Electron's Windows menu bar.
   if (process.platform === 'win32') Menu.setApplicationMenu(null)
+  session.defaultSession.webRequest.onBeforeSendHeaders({ urls: ['*://*.tiktokcdn.com/*'] }, (details, callback) => {
+    details.requestHeaders.Referer = 'https://www.tiktok.com/'
+    details.requestHeaders.Origin = 'https://www.tiktok.com'
+    callback({ requestHeaders: details.requestHeaders })
+  })
 
   ipcMain.handle('folder:default', () => path.join(app.getPath('downloads'), 'ClipVault'))
   ipcMain.handle('folder:choose', async () => {
@@ -1010,6 +1037,12 @@ async function initializeApp() {
   ipcMain.handle('preview:load', async (_event, payload) => {
     try { return { ok: true, preview: await previewInfo(String(payload?.platform || ''), String(payload?.url || '').trim()) } }
     catch (error) { return { ok: false, message: conciseDownloadError(error, String(payload?.platform || '')) } }
+  })
+  ipcMain.handle('preview:open-youtube', async (_event, value) => {
+    const url = String(value || '').trim()
+    if (!isAllowedUrl(url, 'youtube')) return 'URL YouTube không hợp lệ.'
+    await shell.openExternal(url)
+    return null
   })
   ipcMain.handle('downloads:start', async (event, payload) => {
     if (activeJob) return { ok: false, message: 'Đang có một lượt tải khác chạy.' }

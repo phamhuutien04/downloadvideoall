@@ -228,14 +228,31 @@ async function previewVideo() {
   try {
     const url = $('#single-url').value.trim()
     validateUrls([url])
+    if (state.platform === 'youtube') {
+      const id = new URL(url).pathname.match(/\/shorts\/([^/?]+)/)?.[1] || new URL(url).searchParams.get('v')
+      if (!id) throw new Error('Không nhận diện được video YouTube.')
+      $('#preview-player').hidden = true; $('#youtube-preview').hidden = false; $('#youtube-preview').src = `https://www.youtube.com/embed/${encodeURIComponent(id)}?autoplay=1&playsinline=1&rel=0`; $('#preview-title').textContent = 'Xem trước YouTube'; $('#preview-detail').textContent = 'Video được phát trong ClipVault.'; $('#preview-modal').hidden = false; return
+    }
     const requestId = ++state.previewRequestId
     const player = $('#preview-player')
-    player.pause(); player.removeAttribute('src'); player.load()
+    const dialog = $('#preview-modal .settings-dialog')
+    $('#youtube-preview').hidden = true; $('#youtube-preview').src = ''; player.hidden = false; player.pause(); player.removeAttribute('src'); player.removeAttribute('poster'); player.style.width = ''; player.style.height = ''; player.load()
     $('#preview-modal').hidden = false; $('#preview-title').textContent = 'Đang chuẩn bị xem trước…'; $('#preview-detail').textContent = ''
     const response = await window.clipVault.loadPreview({ platform: state.platform, url })
     if (requestId !== state.previewRequestId) return
     if (!response?.ok || !response.preview?.url) throw new Error(response?.message || 'Nguồn không cung cấp video xem trước.')
-    $('#preview-title').textContent = response.preview.title; player.src = response.preview.url; player.load(); $('#preview-detail').textContent = 'Video chỉ được phát thử, chưa tải về máy.'
+    $('#preview-title').textContent = response.preview.title
+    player.onloadedmetadata = () => {
+      const ratio = player.videoWidth / player.videoHeight
+      if (!Number.isFinite(ratio) || ratio <= 0) return
+      const maxHeight = Math.min(440, window.innerHeight - 190)
+      const videoWidth = Math.round(Math.min(620, Math.max(240, maxHeight * ratio)))
+      const videoHeight = Math.round(videoWidth / ratio)
+      player.style.width = `${videoWidth}px`; player.style.height = `${videoHeight}px`
+      dialog.style.width = `${Math.min(window.innerWidth - 36, videoWidth + 40)}px`
+    }
+    if (response.preview.thumbnail) player.poster = response.preview.thumbnail
+    player.src = response.preview.url; player.load(); $('#preview-detail').textContent = 'Video chỉ được phát thử, chưa tải về máy.'
   } catch (error) { $('#preview-modal').hidden = true; showToast(error.message || 'Không thể xem trước video.', true) }
 }
 
@@ -337,6 +354,12 @@ function bindEvents() {
   $$('.mode-tab').forEach((button) => button.addEventListener('click', () => selectMode(button.dataset.mode)))
   $('#start-download').addEventListener('click', startDownload)
   $('#preview-video').addEventListener('click', previewVideo)
+  $('#single-url').addEventListener('input', () => {
+    state.previewRequestId += 1
+    const player = $('#preview-player')
+    player.pause(); player.removeAttribute('src'); player.load()
+    $('#preview-modal').hidden = true
+  })
   $('#close-preview').addEventListener('click', () => { state.previewRequestId += 1; $('#preview-player').pause(); $('#preview-player').removeAttribute('src'); $('#preview-player').load(); $('#preview-modal').hidden = true })
   $$('[data-close-preview]').forEach((element) => element.addEventListener('click', () => { state.previewRequestId += 1; $('#preview-player').pause(); $('#preview-player').removeAttribute('src'); $('#preview-player').load(); $('#preview-modal').hidden = true }))
   $('#clear-form').addEventListener('click', resetForm)
