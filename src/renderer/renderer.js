@@ -1,9 +1,9 @@
 const platforms = {
   facebook: { label: 'Facebook', accent: '#4f8cff', rgb: '79, 140, 255', glyph: 'f', title: 'Facebook video desk', headline: 'Lưu video công khai của bạn, gọn gàng.', description: 'Tải một Reel/video, nhiều URL, hoặc toàn bộ video công khai từ một trang bạn có quyền quản lý.', domains: ['facebook.com', 'fb.watch'] },
   youtube: { label: 'YouTube', accent: '#ff5b68', rgb: '255, 91, 104', glyph: '▶', title: 'YouTube video desk', headline: 'Gom video và Shorts vào thư viện riêng.', description: 'Lưu từng video, nhiều liên kết, hoặc playlist/kênh công khai mà bạn được phép lưu.', domains: ['youtube.com', 'youtu.be'] },
-  tiktok: { label: 'TikTok', accent: '#8f73ff', rgb: '143, 115, 255', glyph: '♪', title: 'TikTok video desk', headline: 'Lưu clip công khai có tổ chức.', description: 'Dán URL video hoặc danh sách liên kết công khai bạn sở hữu hay được cấp quyền tải.', domains: ['tiktok.com'] },
+  tiktok: { label: 'TikTok', accent: '#8f73ff', rgb: '143, 115, 255', glyph: '♪', title: 'TikTok media desk', headline: 'Lưu video và ảnh công khai có tổ chức.', description: 'Dán URL video hoặc bài đăng ảnh công khai bạn sở hữu hay được cấp quyền tải.', domains: ['tiktok.com'] },
   x: { label: 'X', accent: '#dbe6fa', rgb: '219, 230, 250', glyph: '𝕏', title: 'X video desk', headline: 'Lưu video X công khai, gọn gàng.', description: 'Tải một video hoặc nhiều liên kết X công khai mà bạn sở hữu hoặc được cấp quyền lưu.', domains: ['x.com', 'twitter.com'] },
-  rednote: { label: 'RedNote', accent: '#ef4d64', rgb: '239, 77, 100', glyph: 'R', title: 'RedNote video desk', headline: 'Lưu nội dung RedNote công khai, gọn gàng.', description: 'Tải video, nhiều URL, hoặc các bài đăng RedNote công khai mà bạn sở hữu hoặc được cấp quyền lưu.', domains: ['rednote.com', 'xiaohongshu.com', 'xhslink.com'] },
+  rednote: { label: 'RedNote', accent: '#ef4d64', rgb: '239, 77, 100', glyph: 'R', title: 'RedNote media desk', headline: 'Lưu video và ảnh RedNote công khai.', description: 'Tải video, ảnh trong bài đăng, nhiều URL hoặc nội dung RedNote công khai bạn sở hữu hay được cấp quyền lưu.', domains: ['rednote.com', 'xiaohongshu.com', 'xhslink.com'] },
 }
 
 const state = { platform: 'facebook', mode: 'single', outputDir: '', busy: false, installingTool: null, toastTimer: null }

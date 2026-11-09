@@ -42,7 +42,9 @@ const FFMPEG_ARCHIVE_NAME = 'ffmpeg-master-latest-win64-gpl.zip'
 const FFMPEG_CHECKSUMS_NAME = 'checksums.sha256'
 const MAX_YT_DLP_DOWNLOAD_BYTES = 100 * 1024 * 1024
 const MAX_FFMPEG_ARCHIVE_BYTES = 250 * 1024 * 1024
-const MAX_FFMPEG_BINARY_BYTES = 200 * 1024 * 1024
+// Current official GPL Windows builds can exceed 200 MiB after extraction.
+// Keep a bounded limit while allowing the verified current release to install.
+const MAX_FFMPEG_BINARY_BYTES = 350 * 1024 * 1024
 const RELEASE_METADATA_FETCH_TIMEOUT_MS = 120 * 1000
 const RELEASE_ASSET_FETCH_TIMEOUT_MS = 20 * 60 * 1000
 const TOOL_COMMAND_TIMEOUT_MS = 15 * 1000
@@ -98,15 +100,18 @@ function validateRequest(payload) {
     throw new Error('Chế độ trang/kênh chỉ nhận một URL công khai mỗi lần.')
   }
 
+  const mediaType = ['tiktok', 'rednote'].includes(payload.platform) ? 'auto' : 'video'
+
   const rawOutputDir = String(payload.outputDir || '').trim()
   if (!rawOutputDir) throw new Error('Hãy chọn thư mục lưu cụ thể.')
   const outputDir = path.resolve(rawOutputDir)
   if (!outputDir || outputDir === path.parse(outputDir).root) throw new Error('Hãy chọn thư mục lưu cụ thể.')
   const maxItems = Number.parseInt(payload.maxItems, 10) || 0
-  if (maxItems < 0 || maxItems > 10000) throw new Error('Giới hạn số video phải từ 0 đến 10.000.')
+  if (maxItems < 0 || maxItems > 10000) throw new Error('Giới hạn số nội dung phải từ 0 đến 10.000.')
 
   return {
     platform: payload.platform,
+    mediaType,
     mode: payload.mode,
     urls,
     outputDir,
@@ -116,16 +121,17 @@ function validateRequest(payload) {
   }
 }
 
-function outputTemplate(request) {
+function outputTemplate(request, mediaType = request.mediaType) {
   return path.join(
     request.outputDir,
     request.platform,
+    ...(mediaType === 'images' ? ['images'] : []),
     '%(uploader|unknown)s',
     '%(title).160B [%(id)s].%(ext)s',
   )
 }
 
-function downloadFlags(request, ffmpegDirectory = null) {
+function downloadFlags(request, ffmpegDirectory = null, mediaType = request.mediaType) {
   const formats = {
     withFfmpeg: {
       standard: 'bv*[height<=720]+ba/b[height<=720]/b',
@@ -136,15 +142,25 @@ function downloadFlags(request, ffmpegDirectory = null) {
       compact: 'b[height<=480]/b',
     },
   }
-  const archivePath = path.join(request.outputDir, '.clipvault-archive', `${request.platform}.txt`)
+  const archiveName = mediaType === 'images' ? `${request.platform}-images` : request.platform
+  const archivePath = path.join(request.outputDir, '.clipvault-archive', `${archiveName}.txt`)
   const flags = {
-    output: outputTemplate(request),
+    output: outputTemplate(request, mediaType),
     newline: true,
-    noPlaylist: request.mode !== 'collection',
+    // A photo post can be exposed by yt-dlp as a short playlist. Keep all
+    // its entries so a carousel is saved in full rather than only its first image.
+    noPlaylist: mediaType === 'images' ? false : request.mode !== 'collection',
     windowsFilenames: true,
     restrictFilenames: true,
     continue: true,
   }
+  if (request.maxItems) flags.playlistEnd = request.maxItems
+  if (request.skipExisting) {
+    flags.noOverwrites = true
+    flags.downloadArchive = archivePath
+  }
+  if (mediaType === 'images') return flags
+
   // Always require an audio-capable format. With FFmpeg, yt-dlp may download
   // separate video/audio streams and merge them; without it, only accept a
   // pre-muxed video+audio stream so the app never knowingly saves video-only.
@@ -154,11 +170,6 @@ function downloadFlags(request, ffmpegDirectory = null) {
     flags.ffmpegLocation = ffmpegDirectory
   } else {
     flags.format = request.quality === 'best' ? 'b' : formats.withoutFfmpeg[request.quality]
-  }
-  if (request.maxItems) flags.playlistEnd = request.maxItems
-  if (request.skipExisting) {
-    flags.noOverwrites = true
-    flags.downloadArchive = archivePath
   }
   return flags
 }
@@ -177,10 +188,42 @@ function normalizedDownloadUrl(platform, sourceUrl) {
     if (host === 'rednote.com' || host.endsWith('.rednote.com')) {
       url.protocol = 'https:'
       url.hostname = 'www.xiaohongshu.com'
+      // Keep RedNote's original path and signed query string intact. Current
+      // yt-dlp releases recognize the /discovery/item form and the platform
+      // validates the xsec parameters against that original route.
       return url.toString()
     }
   } catch {}
   return sourceUrl
+}
+
+function infoHasVideo(info) {
+  if (!info || typeof info !== 'object') return false
+  if (Array.isArray(info.entries)) return info.entries.some(infoHasVideo)
+  if (Array.isArray(info.formats)) {
+    return info.formats.some((format) => format?.vcodec && format.vcodec !== 'none')
+  }
+  return Boolean(info.duration || info.vcodec && info.vcodec !== 'none')
+}
+
+function parseYtDlpInfo(output) {
+  const lines = String(output || '').split(/\r?\n/).map((line) => line.trim()).filter(Boolean)
+  for (const line of lines.reverse()) {
+    try { return JSON.parse(line) } catch {}
+  }
+  throw new Error('yt-dlp không trả về thông tin nội dung để nhận diện.')
+}
+
+async function detectedMediaType(platform, executablePath, sourceUrl) {
+  if (!['tiktok', 'rednote'].includes(platform)) return 'video'
+  const { stdout } = await execFileAsync(executablePath, [
+    '--dump-single-json', '--skip-download', '--no-warnings', '--', sourceUrl,
+  ], {
+    windowsHide: true,
+    timeout: 60000,
+    maxBuffer: 10 * 1024 * 1024,
+  })
+  return infoHasVideo(parseYtDlpInfo(stdout)) ? 'video' : 'images'
 }
 
 function accessRequirementMessage(platform, value) {
@@ -230,6 +273,14 @@ function conciseDownloadError(error, platform, capturedMessage = null) {
   }
 
   return 'Không thể tải URL này. Hãy kiểm tra liên kết có công khai và thử cập nhật yt-dlp trong Cài đặt.'
+}
+
+function hasNoVideoFormatsError(error) {
+  return /no video formats found/i.test([
+    error?.stderr,
+    error?.stdout,
+    error?.message,
+  ].filter(Boolean).join('\n'))
 }
 
 function ytDlpFileName() {
@@ -377,8 +428,19 @@ async function expectedAssetChecksum(url, assetName, label) {
 }
 
 async function downloadReleaseAsset(url, destination, { expectedSize, maximumBytes, label }) {
-  const response = await fetchTrustedGithubRelease(url, { timeoutMs: RELEASE_ASSET_FETCH_TIMEOUT_MS })
-  if (!response.ok || !response.body || !isTrustedGithubReleaseUrl(response.url)) {
+  let response = null
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    response = await fetchTrustedGithubRelease(url, { timeoutMs: RELEASE_ASSET_FETCH_TIMEOUT_MS })
+    if (response.ok && response.body && isTrustedGithubReleaseUrl(response.url)) break
+    const retryable = [502, 503, 504].includes(response.status)
+    if (!retryable || attempt === 3) break
+    try { await response.body?.cancel() } catch {}
+    await new Promise((resolve) => setTimeout(resolve, attempt * 2000))
+  }
+  if (!response?.ok || !response.body || !isTrustedGithubReleaseUrl(response.url)) {
+    if ([502, 503, 504].includes(response?.status)) {
+      throw new Error(`Máy chủ GitHub tạm không phản hồi khi tải ${label}. ClipVault đã thử lại 3 lần; hãy đợi một lát rồi bấm cài lại.`)
+    }
     throw new Error(`Không thể tải ${label} từ nguồn đã xác minh.`)
   }
   const contentLength = Number(response.headers.get('content-length') || 0)
@@ -789,13 +851,36 @@ async function downloadOne(job, sender, sourceUrl) {
   if (downloadUrl !== sourceUrl) {
     send(sender, 'downloads:status', { jobId: job.id, text: 'Đang dùng liên kết RedNote tương thích…' })
   }
-  const child = youtubedl.create(job.ytDlpPath).exec(downloadUrl, downloadFlags(job.request, job.ffmpegDirectory), { windowsHide: true })
-  job.child = child
-  child.stdout?.on('data', (chunk) => processOutput(job, sender, sourceUrl, chunk))
-  child.stderr?.on('data', (chunk) => processOutput(job, sender, sourceUrl, chunk))
-  try {
+  const mediaType = await detectedMediaType(job.request.platform, job.ytDlpPath, downloadUrl)
+  send(sender, 'downloads:status', {
+    jobId: job.id,
+    text: mediaType === 'images' ? 'Đã nhận diện bài đăng ảnh; đang tải toàn bộ ảnh…' : 'Đã nhận diện video; đang chọn chất lượng cao nhất…',
+  })
+
+  const runWithMediaType = async (type) => {
+    const child = youtubedl.create(job.ytDlpPath).exec(
+      downloadUrl,
+      downloadFlags(job.request, job.ffmpegDirectory, type),
+      { windowsHide: true },
+    )
+    job.child = child
+    child.stdout?.on('data', (chunk) => processOutput(job, sender, sourceUrl, chunk))
+    child.stderr?.on('data', (chunk) => processOutput(job, sender, sourceUrl, chunk))
     await child
+  }
+
+  try {
+    await runWithMediaType(mediaType)
   } catch (error) {
+    // Some RedNote photo posts expose placeholder format metadata. If that
+    // makes yt-dlp choose the video path, retry as an image post automatically.
+    if (mediaType === 'video'
+      && ['tiktok', 'rednote'].includes(job.request.platform)
+      && hasNoVideoFormatsError(error)) {
+      send(sender, 'downloads:status', { jobId: job.id, text: 'Bài đăng không có định dạng video; chuyển sang tải ảnh…' })
+      await runWithMediaType('images')
+      return
+    }
     throw new Error(conciseDownloadError(error, job.request.platform, job.currentFailureMessage))
   } finally {
     job.child = null
@@ -807,7 +892,9 @@ async function runJob(job, sender) {
   let failedSources = 0
   try {
     fs.mkdirSync(path.join(job.request.outputDir, '.clipvault-archive'), { recursive: true })
-    if (job.request.quality === 'best') {
+    if (['tiktok', 'rednote'].includes(job.request.platform)) {
+      send(sender, 'downloads:status', { jobId: job.id, text: 'Đang nhận diện bài đăng là ảnh hay video…' })
+    } else if (job.request.quality === 'best') {
       const detail = job.ffmpegSource
         ? 'Đang ưu tiên chất lượng hình và tiếng cao nhất, ghép bằng FFmpeg…'
         : 'FFmpeg chưa sẵn sàng; đang chỉ chọn video đã có sẵn cả hình và tiếng để tránh mất tiếng…'
