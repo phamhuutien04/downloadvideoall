@@ -29,7 +29,6 @@
 Yêu cầu: Node.js 20 trở lên trên Windows.
 
 ```powershell
-cd D:\facebook\dowload
 npm install
 npm start
 ```
