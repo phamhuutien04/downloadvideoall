@@ -226,6 +226,18 @@ async function detectedMediaType(platform, executablePath, sourceUrl) {
   return infoHasVideo(parseYtDlpInfo(stdout)) ? 'video' : 'images'
 }
 
+async function previewInfo(platform, sourceUrl) {
+  if (!PLATFORM_RULES[platform] || !isAllowedUrl(sourceUrl, platform)) throw new Error('URL xem trước không hợp lệ.')
+  const downloader = await workingYtDlp()
+  if (!downloader.path) throw new Error('Chưa có yt-dlp hoạt động. Hãy cài trong Cài đặt.')
+  const url = normalizedDownloadUrl(platform, sourceUrl)
+  const { stdout } = await execFileAsync(downloader.path, ['--dump-single-json', '--no-playlist', '--no-warnings', '--', url], { windowsHide: true, timeout: 60000, maxBuffer: 10 * 1024 * 1024 })
+  const info = parseYtDlpInfo(stdout)
+  const formats = Array.isArray(info.formats) ? info.formats : []
+  const playable = formats.filter((item) => item?.url && item.vcodec !== 'none' && item.acodec !== 'none').sort((a, b) => (b.height || 0) - (a.height || 0))[0]
+  return { title: String(info.title || 'Video xem trước'), thumbnail: info.thumbnail || null, url: playable?.url || info.url || null, duration: Number(info.duration || 0) }
+}
+
 function accessRequirementMessage(platform, value) {
   const detail = String(value || '').toLowerCase()
   const needsSession = detail.includes('log in for access')
@@ -994,6 +1006,10 @@ async function initializeApp() {
     } catch (error) {
       return { ok: false, message: error.message || 'Không thể cài FFmpeg.' }
     }
+  })
+  ipcMain.handle('preview:load', async (_event, payload) => {
+    try { return { ok: true, preview: await previewInfo(String(payload?.platform || ''), String(payload?.url || '').trim()) } }
+    catch (error) { return { ok: false, message: conciseDownloadError(error, String(payload?.platform || '')) } }
   })
   ipcMain.handle('downloads:start', async (event, payload) => {
     if (activeJob) return { ok: false, message: 'Đang có một lượt tải khác chạy.' }

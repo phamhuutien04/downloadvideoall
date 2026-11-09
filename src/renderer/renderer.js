@@ -6,7 +6,7 @@ const platforms = {
   rednote: { label: 'RedNote', accent: '#ef4d64', rgb: '239, 77, 100', glyph: 'R', title: 'RedNote media desk', headline: 'Lưu video và ảnh RedNote công khai.', description: 'Tải video, ảnh trong bài đăng, nhiều URL hoặc nội dung RedNote công khai bạn sở hữu hay được cấp quyền lưu.', domains: ['rednote.com', 'xiaohongshu.com', 'xhslink.com'] },
 }
 
-const state = { platform: 'facebook', mode: 'single', outputDir: '', busy: false, installingTool: null, toastTimer: null }
+const state = { platform: 'facebook', mode: 'single', outputDir: '', busy: false, installingTool: null, toastTimer: null, previewRequestId: 0 }
 const $ = (selector) => document.querySelector(selector)
 const $$ = (selector) => [...document.querySelectorAll(selector)]
 
@@ -224,6 +224,20 @@ async function startDownload() {
     showToast(error.message || 'Không thể bắt đầu tải.', true)
   }
 }
+async function previewVideo() {
+  try {
+    const url = $('#single-url').value.trim()
+    validateUrls([url])
+    const requestId = ++state.previewRequestId
+    const player = $('#preview-player')
+    player.pause(); player.removeAttribute('src'); player.load()
+    $('#preview-modal').hidden = false; $('#preview-title').textContent = 'Đang chuẩn bị xem trước…'; $('#preview-detail').textContent = ''
+    const response = await window.clipVault.loadPreview({ platform: state.platform, url })
+    if (requestId !== state.previewRequestId) return
+    if (!response?.ok || !response.preview?.url) throw new Error(response?.message || 'Nguồn không cung cấp video xem trước.')
+    $('#preview-title').textContent = response.preview.title; player.src = response.preview.url; player.load(); $('#preview-detail').textContent = 'Video chỉ được phát thử, chưa tải về máy.'
+  } catch (error) { $('#preview-modal').hidden = true; showToast(error.message || 'Không thể xem trước video.', true) }
+}
 
 function resetForm() {
   if (state.busy || isToolInstallRunning()) return
@@ -322,6 +336,9 @@ function bindEvents() {
   $$('.platform-button').forEach((button) => button.addEventListener('click', () => selectPlatform(button.dataset.platform)))
   $$('.mode-tab').forEach((button) => button.addEventListener('click', () => selectMode(button.dataset.mode)))
   $('#start-download').addEventListener('click', startDownload)
+  $('#preview-video').addEventListener('click', previewVideo)
+  $('#close-preview').addEventListener('click', () => { state.previewRequestId += 1; $('#preview-player').pause(); $('#preview-player').removeAttribute('src'); $('#preview-player').load(); $('#preview-modal').hidden = true })
+  $$('[data-close-preview]').forEach((element) => element.addEventListener('click', () => { state.previewRequestId += 1; $('#preview-player').pause(); $('#preview-player').removeAttribute('src'); $('#preview-player').load(); $('#preview-modal').hidden = true }))
   $('#clear-form').addEventListener('click', resetForm)
   $('#choose-folder').addEventListener('click', chooseFolder)
   $('#open-folder').addEventListener('click', openFolder)

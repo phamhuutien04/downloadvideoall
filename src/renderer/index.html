@@ -121,6 +121,7 @@
 
 
             <div class="action-row">
+              <button class="quiet-button" id="preview-video" type="button">▷ Xem trước</button>
               <button class="primary-button" id="start-download"><span>↓</span> Bắt đầu tải</button>
               <button class="quiet-button" id="clear-form">Làm mới</button>
             </div>
@@ -146,6 +147,7 @@
         <footer class="footer-note">ClipVault chỉ hỗ trợ URL công khai. Không hỗ trợ nội dung riêng tư, DRM, đăng nhập, cookie, hay cơ chế vượt giới hạn nền tảng.</footer>
       </main>
     </div>
+    <div class="settings-modal" id="preview-modal" hidden><div class="settings-backdrop" data-close-preview></div><section class="settings-dialog" role="dialog"><header class="settings-header"><h2 id="preview-title">Xem trước</h2><button class="icon-button" id="close-preview" type="button">×</button></header><video id="preview-player" controls playsinline style="width:100%;margin-top:18px;border-radius:12px;background:#000"></video><p class="tool-status-detail" id="preview-detail"></p></section></div>
     <div class="settings-modal" id="settings-modal" hidden>
       <div class="settings-backdrop" data-close-settings></div>
       <section class="settings-dialog" role="dialog" aria-modal="true" aria-labelledby="settings-title">
