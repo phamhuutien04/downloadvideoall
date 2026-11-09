@@ -8,6 +8,11 @@ const { promisify } = require('node:util')
 const yauzl = require('yauzl')
 const { app, BrowserWindow, dialog, ipcMain, Menu, shell } = require('electron')
 
+// ClipVault only accepts URLs, so Chromium's spelling service is unnecessary.
+// Disabling it also prevents malformed Windows language identifiers from
+// creating empty `Microsoft\\Spelling\\neutral` folders beside the project.
+app.commandLine.appendSwitch('disable-features', 'Spellcheck')
+
 // ClipVault does not use WebGL. This avoids a Windows GPU-process startup
 // failure seen on machines with incomplete graphics runtime components.
 if (process.platform === 'win32' && process.env.LOCALAPPDATA) {
