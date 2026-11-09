@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ClipVault</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="brand-mark">C</div>
+          <div>
+            <strong>ClipVault</strong>
+            <span>MEDIA DESK</span>
+          </div>
+        </div>
+
+        <div class="sidebar-label">NỀN TẢNG</div>
+        <nav class="platform-nav" aria-label="Chọn nền tảng">
+          <button class="platform-button is-active" data-platform="facebook">
+            <span class="platform-icon icon-facebook">f</span><span>Facebook</span><span class="platform-dot"></span>
+          </button>
+          <button class="platform-button" data-platform="youtube">
+            <span class="platform-icon icon-youtube">▶</span><span>YouTube</span><span class="platform-dot"></span>
+          </button>
+          <button class="platform-button" data-platform="tiktok">
+            <span class="platform-icon icon-tiktok">♪</span><span>TikTok</span><span class="platform-dot"></span>
+          </button>
+          <button class="platform-button" data-platform="x">
+            <span class="platform-icon icon-x">𝕏</span><span>X</span><span class="platform-dot"></span>
+          </button>
+          <button class="platform-button" data-platform="rednote">
+            <span class="platform-icon icon-rednote">R</span><span>RedNote</span><span class="platform-dot"></span>
+          </button>
+        </nav>
+
+        <div class="sidebar-spacer"></div>
+        <button class="settings-button" id="open-settings" type="button">
+          <span class="settings-gear">⚙</span><span>Cài đặt</span><span class="settings-dot is-checking" id="settings-tool-dot" aria-label="Đang kiểm tra yt-dlp"></span>
+        </button>
+        <section class="safe-card">
+          <div class="safe-icon">✓</div>
+          <div>
+            <strong>Tải có trách nhiệm</strong>
+            <p>Chỉ lưu nội dung công khai bạn sở hữu hoặc được cấp quyền tải.</p>
+          </div>
+        </section>
+      </aside>
+
+      <main class="workspace">
+        <header class="topbar">
+          <div>
+            <div class="eyebrow">THƯ VIỆN CÁ NHÂN</div>
+            <h1 id="page-title">Facebook video desk</h1>
+          </div>
+          <div class="folder-control">
+            <div class="folder-meta"><span>LƯU VÀO</span><strong id="output-folder">Đang chọn thư mục…</strong></div>
+            <button class="icon-button" id="choose-folder" title="Chọn thư mục lưu" aria-label="Chọn thư mục lưu">⌁</button>
+            <button class="icon-button" id="open-folder" title="Mở thư mục lưu" aria-label="Mở thư mục lưu">↗</button>
+          </div>
+        </header>
+
+        <section class="hero">
+          <div class="hero-copy">
+            <div class="platform-kicker" id="platform-kicker"><span></span> FACEBOOK</div>
+            <h2 id="hero-title">Lưu video công khai của bạn, gọn gàng.</h2>
+            <p id="hero-description">Tải một Reel/video, nhiều URL, hoặc toàn bộ video công khai từ một trang bạn có quyền quản lý.</p>
+          </div>
+          <div class="hero-orbit" aria-hidden="true">
+            <span class="orbit-dot dot-one"></span><span class="orbit-dot dot-two"></span><span class="orbit-dot dot-three"></span>
+            <div class="orbit-core">↓</div>
+          </div>
+        </section>
+
+        <section class="dashboard-grid">
+          <article class="download-card">
+            <div class="card-heading">
+              <div><span class="step">01</span><h3>Nguồn nội dung</h3></div>
+              <span class="privacy-chip">Không dùng cookie hay đăng nhập</span>
+            </div>
+
+            <div class="mode-tabs" role="tablist" aria-label="Chế độ tải">
+              <button class="mode-tab is-active" data-mode="single" role="tab">Một video</button>
+              <button class="mode-tab" data-mode="multiple" role="tab">Nhiều URL</button>
+              <button class="mode-tab" data-mode="collection" role="tab">Trang / kênh công khai</button>
+            </div>
+
+            <div class="mode-panel is-active" data-panel="single">
+              <label for="single-url">URL video hoặc Reel</label>
+              <div class="input-with-icon"><span>⌁</span><input id="single-url" type="url" autocomplete="off" placeholder="Dán liên kết video công khai vào đây" /></div>
+              <p class="input-help">Dùng khi bạn chỉ cần lưu một video.</p>
+            </div>
+
+            <div class="mode-panel" data-panel="multiple">
+              <label for="multiple-urls">Danh sách URL</label>
+              <textarea id="multiple-urls" spellcheck="false" placeholder="Mỗi dòng một URL công khai…"></textarea>
+              <p class="input-help">Tải tuần tự nhiều video; URL trùng sẽ được bỏ qua.</p>
+            </div>
+
+            <div class="mode-panel" data-panel="collection">
+              <label for="collection-url">URL trang, kênh hoặc danh sách công khai</label>
+              <div class="input-with-icon"><span>⌁</span><input id="collection-url" type="url" autocomplete="off" placeholder="Dán URL trang/kênh bạn sở hữu hoặc được phép lưu" /></div>
+              <div class="limit-row">
+                <div><strong>Phạm vi tải</strong><span>0 nghĩa là tất cả video công khai mà nguồn hỗ trợ.</span></div>
+                <label class="number-wrap"><input id="max-items" type="number" min="0" max="10000" value="0" /><span>video</span></label>
+              </div>
+              <p class="input-help">Khả năng lấy toàn bộ danh sách phụ thuộc vào nền tảng và URL công khai.</p>
+            </div>
+
+            <div class="options-grid">
+              <label class="option-field">Chất lượng
+                <select id="quality">
+                  <option value="best">Cao nhất · ưu tiên hình + tiếng tốt nhất</option>
+                  <option value="standard">Chuẩn · tối đa 720p</option>
+                  <option value="compact">Nhẹ · dung lượng thấp</option>
+                </select>
+              </label>
+              <label class="toggle-field"><input id="skip-existing" type="checkbox" checked /><span class="switch"></span><span>Không tải lại video đã lưu</span></label>
+            </div>
+
+
+            <div class="action-row">
+              <button class="primary-button" id="start-download"><span>↓</span> Bắt đầu tải</button>
+              <button class="quiet-button" id="clear-form">Làm mới</button>
+            </div>
+          </article>
+
+          <aside class="activity-card">
+            <div class="card-heading">
+              <div><span class="step">02</span><h3>Hoạt động</h3></div>
+              <span class="status-badge" id="status-badge">Sẵn sàng</span>
+            </div>
+            <div class="now-downloading">
+              <div class="media-glyph" id="media-glyph">f</div>
+              <div><span id="activity-platform">Facebook</span><strong id="activity-title">Chưa có tác vụ nào</strong></div>
+            </div>
+            <div class="progress-track"><div id="progress-bar"></div></div>
+            <div class="progress-meta"><span id="progress-detail">Chọn nguồn để bắt đầu.</span><strong id="progress-percent">0%</strong></div>
+            <button class="cancel-button" id="cancel-download" disabled>■ Dừng lượt tải</button>
+            <div class="log-heading"><span>NHẬT KÝ GẦN ĐÂY</span><button id="clear-log">Xóa</button></div>
+            <div id="activity-log" class="activity-log" aria-live="polite"><div class="log-empty">Thông tin tiến trình sẽ xuất hiện ở đây.</div></div>
+          </aside>
+        </section>
+
+        <footer class="footer-note">ClipVault chỉ hỗ trợ URL công khai. Không hỗ trợ nội dung riêng tư, DRM, đăng nhập, cookie, hay cơ chế vượt giới hạn nền tảng.</footer>
+      </main>
+    </div>
+    <div class="settings-modal" id="settings-modal" hidden>
+      <div class="settings-backdrop" data-close-settings></div>
+      <section class="settings-dialog" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+        <header class="settings-header">
+          <div>
+            <div class="eyebrow">CẤU HÌNH ỨNG DỤNG</div>
+            <h2 id="settings-title">Cài đặt</h2>
+          </div>
+          <button class="icon-button" id="close-settings" type="button" aria-label="Đóng cài đặt">×</button>
+        </header>
+        <section class="tool-card" aria-labelledby="tool-title">
+          <div class="tool-topline">
+            <div class="tool-identity">
+              <span class="tool-icon">↓</span>
+              <div><strong id="tool-title">yt-dlp</strong><span>Công cụ tải video công khai</span></div>
+            </div>
+            <span class="tool-status" id="tool-status-badge">Đang kiểm tra…</span>
+          </div>
+          <p class="tool-status-detail" id="tool-status-detail">Đang kiểm tra công cụ tải video.</p>
+          <div class="tool-actions">
+            <button class="quiet-button" id="refresh-tool-status" type="button">Kiểm tra lại</button>
+            <button class="primary-button" id="install-tool" type="button">Cài / cập nhật yt-dlp</button>
+          </div>
+        </section>
+        <section class="tool-card" aria-labelledby="ffmpeg-title">
+          <div class="tool-topline">
+            <div class="tool-identity">
+              <span class="tool-icon is-ffmpeg">FF</span>
+              <div><strong id="ffmpeg-title">FFmpeg</strong><span>Ghép hình và tiếng chất lượng cao</span></div>
+            </div>
+            <span class="tool-status" id="ffmpeg-status-badge">Đang kiểm tra…</span>
+          </div>
+          <p class="tool-status-detail" id="ffmpeg-status-detail">Đang kiểm tra FFmpeg do ClipVault quản lý.</p>
+          <div class="tool-actions">
+            <button class="quiet-button" id="refresh-ffmpeg-status" type="button">Kiểm tra lại</button>
+            <button class="primary-button" id="install-ffmpeg" type="button">Cài FFmpeg</button>
+          </div>
+        </section>
+        <p class="settings-note">yt-dlp tải video; FFmpeg giúp ghép hình và tiếng ở chất lượng cao nhất. Khi bạn bấm cài, ClipVault chỉ tải gói tương thích đã kiểm tra và lưu vào dữ liệu riêng của ứng dụng.</p>
+      </section>
+    </div>
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    <script src="renderer.js"></script>
+  </body>
+</html>

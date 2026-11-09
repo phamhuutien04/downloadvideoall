@@ -1,0 +1,33 @@
+{
+  "name": "clipvault",
+  "version": "1.0.0",
+  "description": "Desktop downloader for public media you own or are authorized to save.",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron .",
+    "package": "electron-builder --win portable"
+  },
+  "dependencies": {
+    "yauzl": "^2.10.0",
+    "youtube-dl-exec": "^3.0.0"
+  },
+  "devDependencies": {
+    "electron": "^35.1.5",
+    "electron-builder": "^26.0.12"
+  },
+  "build": {
+    "appId": "com.local.clipvault",
+    "productName": "ClipVault",
+    "files": [
+      "src/**/*",
+      "package.json"
+    ],
+    "asarUnpack": [
+      "node_modules/youtube-dl-exec/bin/**"
+    ],
+    "win": {
+      "target": "portable"
+    }
+  }
+}
